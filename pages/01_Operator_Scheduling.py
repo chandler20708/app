@@ -250,10 +250,16 @@ def render_sidebar_and_problem() -> tuple[ProblemContext, Dict[str, object], Opt
             st.caption(f"Optimisation Status: {status}")
 
         run_clicked = st.button("Run optimisation", width="stretch")
+        use_availability_view = st.toggle(
+            "Use availability-normalised fairness view",
+            value=False,
+            key="fairness_view_toggle",
+        )
 
     controls = {
         "allowable_pct": allowable_pct,
         "fairness_mode": fairness_mode,
+        "use_availability": use_availability_view,
         "consider_skills": consider_skills,
         "run_clicked": run_clicked,
     }
@@ -422,8 +428,23 @@ def run_scheduler(
     return build_solution_view(sol, baseline, objective_label, cost_limit)
 
 
+def _looks_like_solution_view(obj) -> bool:
+    required = (
+        "total_cost",
+        "weekly_hours",
+        "cost_breakdown",
+        "schedule",
+        "day_color_map",
+        "day_order",
+        "problem",
+    )
+    return all(hasattr(obj, name) for name in required)
+
+
 def _coerce_solution_view(last_solution) -> Optional[SolutionView]:
     if isinstance(last_solution, SolutionView):
+        return last_solution
+    if _looks_like_solution_view(last_solution):
         return last_solution
     if not isinstance(last_solution, dict) or "total_cost" not in last_solution:
         return None
@@ -574,26 +595,17 @@ def render_cost_and_table(solution_view: SolutionView):
     )
 
 
-def _render_distribution_chart(view: SolutionView):
+def render_schedule(view: SolutionView, view_label: str):
     schedule_df = view.schedule
     cost_df = view.cost_breakdown.sort_values("cost", ascending=False)
     if schedule_df.empty or "availability" not in schedule_df.columns:
         st.info("No utilisation data available.")
         return
+    st.markdown(f"### {view_label}")
     chart = build_workload_chart(
         schedule_df, cost_df, view.day_color_map, view.day_order
     )
     st.altair_chart(chart, width="stretch")
-
-
-def render_schedule(solution_view: SolutionView, availability_view: SolutionView):
-    distribution_tab, utilisation_tab = st.tabs(
-        ["Hour Distribution", "Hour / Availability Utilisation"]
-    )
-    with distribution_tab:
-        _render_distribution_chart(solution_view)
-    with utilisation_tab:
-        _render_distribution_chart(availability_view)
 
 
 def render_footer(solution_view: SolutionView, problem_ctx: ProblemContext):
@@ -613,6 +625,7 @@ def render_footer(solution_view: SolutionView, problem_ctx: ProblemContext):
 def render_results(
     solution_view: SolutionView,
     availability_view: SolutionView,
+    use_availability: bool,
     problem_ctx: ProblemContext,
 ):
     title_section = st.container()
@@ -623,9 +636,15 @@ def render_results(
     with title_section:
         render_header()
     with kpi_section:
-        render_cost_and_table(solution_view)
+        active_view = availability_view if use_availability else solution_view
+        view_label = (
+            "Hour / Availability Utilisation"
+            if use_availability
+            else "Hour Distribution"
+        )
+        render_cost_and_table(active_view)
     with schedule_section:
-        render_schedule(solution_view, availability_view)
+        render_schedule(active_view, view_label)
     with footer_section:
         render_footer(solution_view, problem_ctx)
 
@@ -661,7 +680,12 @@ def main():
 
     st.session_state.last_solution = solution_view
     st.session_state.last_solution_availability = availability_view
-    render_results(solution_view, availability_view, problem_ctx)
+    render_results(
+        solution_view,
+        availability_view,
+        controls["use_availability"],
+        problem_ctx,
+    )
 
 
 if __name__ == "__main__":
