@@ -1,0 +1,29 @@
+import streamlit as st
+
+def add_title(title: str, subtitle_mk: str = None):
+  st.title(title)
+  if subtitle_mk:
+    st.markdown(subtitle_mk)
+
+def _ordered_days(days: list[str]) -> list[str]:
+    unique_days = list(dict.fromkeys(days))
+    preferred = [d for d in days if d in unique_days]
+    remaining = [d for d in unique_days if d not in days]
+    return preferred + remaining
+
+def card_container():
+    return st.markdown(
+        """
+        <div style="
+            background-color: #F9FAFB;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            height: 100%;
+        ">
+        """,
+        unsafe_allow_html=True,
+    )
+
+def close_card():
+    st.markdown("</div>", unsafe_allow_html=True)
