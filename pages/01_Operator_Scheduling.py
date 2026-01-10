@@ -244,12 +244,12 @@ def render_sidebar_and_problem() -> tuple[ProblemContext, Dict[str, object], Opt
         else:
             st.caption("Baseline min cost unavailable.")
 
-        st.markdown("---")
         status = _last_solution_status()
         if status:
             st.caption(f"Optimisation Status: {status}")
 
         run_clicked = st.button("Run optimisation", width="stretch")
+        st.markdown("---")
         use_availability_view = st.toggle(
             "Use availability-normalised fairness view",
             value=False,
