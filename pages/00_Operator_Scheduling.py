@@ -22,7 +22,7 @@ from utils import (
     log_action,
     seed_everything,
     build_workload_chart,
-    _ordered_days,
+    order_days,
 )
 
 # --- Constants ---
@@ -342,7 +342,7 @@ def _assign_colors(students: List[str]) -> Dict[str, str]:
 
 
 def _assign_day_colors(days: List[str]) -> Dict[str, str]:
-    ordered = _ordered_days(days)
+    ordered = order_days(days)
     return {day: DAY_COLORS[idx % len(DAY_COLORS)] for idx, day in enumerate(ordered)}
 
 
@@ -394,7 +394,7 @@ def build_solution_view(
         coverage_by_day=coverage_by_day,
         color_map=_assign_colors(list(sol.problem.students)),
         day_color_map=_assign_day_colors(list(sol.problem.days)),
-        day_order=_ordered_days(DAY_ORDER),
+        day_order=order_days(DAY_ORDER),
         baseline_cost=baseline,
         objective_label=objective_label,
         cost_limit=cost_limit,
@@ -544,55 +544,115 @@ def render_header():
         unsafe_allow_html=True,
     )
 
-
-def render_cost_and_table(solution_view: SolutionView):
-    total_cost = solution_view.total_cost
+def _render_cost_summary(solution_view: SolutionView) -> None:
+    total = solution_view.total_cost
     baseline = solution_view.baseline_cost
-    cost_limit = solution_view.cost_limit
+    limit = solution_view.cost_limit
 
     st.markdown(
-        """
-        <div style="text-align:center; margin-top: -6px;">
+        f"""
+        <div style="text-align:center; margin-top:-6px;">
             <div style="font-size:30px; font-weight:700;">Total Cost (£)</div>
-            <div style="font-size:44px; font-weight:800; margin:6px 0;">{value}</div>
+            <div style="font-size:44px; font-weight:800; margin:6px 0;">
+                £{total:,.2f}
+            </div>
         </div>
-        """.format(value=f"£{total_cost:,.2f}"),
+        """,
         unsafe_allow_html=True,
     )
-    if baseline is not None and baseline != 0:
-        delta_pct = ((total_cost - baseline) / baseline) * 100
+
+    if baseline:
+        delta_pct = (total - baseline) / baseline * 100
         st.caption(
             f"vs baseline £{baseline:,.2f} ({delta_pct:+.1f}%)",
             text_alignment="center",
         )
-    if cost_limit is not None:
-        st.caption(f"Cost limit: £{cost_limit:,.2f}")
 
-    schedule_df = solution_view.schedule
-    if schedule_df.empty:
+    if limit is not None:
+        st.caption(f"Cost limit: £{limit:,.2f}")
+
+def check_df(df: pd.DataFrame):
+    st.write(df)
+    return df
+
+def _build_schedule_table(solution_view: SolutionView) -> pd.DataFrame | None:
+    df = solution_view.schedule
+    if df.empty:
+        return None
+
+    days = order_days(solution_view.problem.days)
+    # st.write(days)
+    return (
+        df
+        # .assign(
+        #     day_id=lambda df: df['day'].replace(dict(
+        #         Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6, Sun=7
+        #     ))
+        # )
+        # .sort_values(['student', 'day_id'])
+        .pivot_table(
+            index="student",
+            columns="day",
+            values="hours",
+            aggfunc="sum",
+            fill_value=0,
+        )
+        # .pipe(check_df)
+        .reindex(columns=days, fill_value=0)
+        .join(pd.Series(solution_view.weekly_hours, name="Total"))
+        .join(
+            pd.Series(solution_view.problem.wage_rates)
+            .rename("Wage Rate")
+        )
+        .assign(
+            **{
+                "Weekly Cost": lambda t: t["Total"] * t["Wage Rate"]
+            }
+        )
+    )
+
+def _append_total_row(table: pd.DataFrame) -> pd.DataFrame:
+    total_row = (
+        table.sum(numeric_only=True)
+        .to_frame()
+        .T
+        .assign(**{"Wage Rate": ""})
+    )
+    total_row.index = ["TOTAL"]
+
+    return pd.concat([table, total_row])
+
+def _format_currency(
+    table: pd.DataFrame, *, cols: list[str], is_rate: bool
+) -> pd.DataFrame:
+    def fmt(v):
+        if is_rate: hour_msg = "/hour"
+        else: hour_msg = ""
+        return f"£{v:,.0f}{hour_msg}" if pd.notna(v) and v != "" else v
+
+    return table.assign(**{c: table[c].map(fmt) for c in cols})
+
+
+def render_cost_and_table(solution_view: SolutionView) -> None:
+    _render_cost_summary(solution_view)
+
+    table = (
+        _build_schedule_table(solution_view)
+        .pipe(_append_total_row)
+        .pipe(_format_currency, cols=["Wage Rate"], is_rate=True)
+        .pipe(_format_currency, cols=["Weekly Cost"], is_rate=False)
+    )
+
+    if table is None:
         st.info("No schedule table available.")
         return
-    days = _ordered_days(solution_view.problem.days)
-    pivot = schedule_df.pivot_table(
-        index="student", columns="day", values="hours", fill_value=0, aggfunc="sum"
-    )
-    pivot = pivot.reindex(columns=days, fill_value=0)
-    weekly_hours = pd.Series(solution_view.weekly_hours, name="Total")
-    wage_rates = pd.Series(solution_view.problem.wage_rates)
-    table = pivot.join(weekly_hours).join(wage_rates.rename("Wage Rate"))
-    table["Weekly Cost"] = table["Total"] * table["Wage Rate"]
-    total_row = pd.DataFrame([table.sum(numeric_only=True)])
-    total_row.index = ["TOTAL"]
-    total_row["Wage Rate"] = ""
-    table = pd.concat([table, total_row], axis=0)
-    money_fmt = lambda v: f"£{v:,.0f}" if pd.notna(v) and v != "" else v
-    for col in ["Wage Rate", "Weekly Cost"]:
-        table[col] = table[col].apply(money_fmt)
+
     st.markdown("#### Detailed Allocation Table")
     st.dataframe(
         table.reset_index().rename(columns={"index": "Student"}),
-        width='stretch',
+        width="stretch",
     )
+
 
 
 def render_schedule(view: SolutionView, view_label: str):
@@ -638,9 +698,9 @@ def render_results(
     with kpi_section:
         active_view = availability_view if use_availability else solution_view
         view_label = (
-            "Hour / Availability Utilisation"
+            "Equitable Resource Utilization"
             if use_availability
-            else "Hour Distribution"
+            else "Equitable Hour Distribution"
         )
         render_cost_and_table(active_view)
     with schedule_section:

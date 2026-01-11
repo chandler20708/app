@@ -31,17 +31,12 @@ def prepare_aed_analytics():
     df = (
         load_aed_data(DATA_PATH)
     )
+    st.write(df)
 
     if df.empty:
         return None
 
-    X = pd.concat(
-        [
-            df[["noofinvestigation"]],
-            pd.get_dummies(df[["HRG_grp"]], drop_first=True),
-        ],
-        axis=1,
-    )
+    X = df.drop('Breach_flag', axis=1)
 
     rules = extract_rules(
         tree_model,

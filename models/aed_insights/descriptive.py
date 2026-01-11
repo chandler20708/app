@@ -10,6 +10,7 @@ from matplotlib.figure import Figure
 
 from models.aed_insights.config import AEDConfig
 from models.aed_insights.core import Schema, get_schema
+from utils import order_days
 
 
 @dataclass(frozen=True)
@@ -122,7 +123,11 @@ def build_descriptive_tables(
     tables["missingness_by_column"] = missingness_by_column(df)
     tables["numeric_summary"] = numeric_summary(df, schema)
     tables["categorical_day"] = categorical_proportions(df, schema.day_col)
-    tables["categorical_dayofweek"] = categorical_proportions(df, schema.dayofweek_col)
+    day_order = _dayofweek_order(df[schema.dayofweek_col], config)
+    tables["categorical_dayofweek"] = _reorder_index(
+        categorical_proportions(df, schema.dayofweek_col),
+        day_order,
+    )
     tables["categorical_period"] = categorical_proportions(df, schema.period_col)
     tables["categorical_hrg"] = categorical_proportions(df, schema.hrg_col)
     if schema.hrg_group_col in df.columns:
@@ -133,7 +138,15 @@ def build_descriptive_tables(
         )
     tables["categorical_breachornot"] = categorical_proportions(df, schema.breach_col)
     tables["overall_breach_share"] = breach_share(df, schema)
-    tables["breach_rate_by_dayofweek"] = breach_rate_by(df, schema, schema.dayofweek_col)
+    breach_day = breach_rate_by(df, schema, schema.dayofweek_col)
+    if day_order:
+        breach_day["_order"] = pd.Categorical(
+            breach_day[schema.dayofweek_col],
+            categories=day_order,
+            ordered=True,
+        )
+        breach_day = breach_day.sort_values("_order").drop(columns="_order").reset_index(drop=True)
+    tables["breach_rate_by_dayofweek"] = breach_day
     tables["breach_rate_by_period"] = breach_rate_by(df, schema, schema.period_col)
     tables["correlation_matrix"] = correlation_matrix(df, schema)
 
@@ -151,6 +164,17 @@ def _observed_order(values: Iterable[str], preferred: Iterable[str]) -> List[str
     observed = pd.Series(values).dropna().unique().tolist()
     ordered = [item for item in preferred if item in observed]
     return ordered or sorted(observed)
+
+
+def _dayofweek_order(values: Iterable[str], _: AEDConfig) -> list[str]:
+    return order_days(values)
+
+
+def _reorder_index(table: pd.DataFrame, order: List[str]) -> pd.DataFrame:
+    if table.empty or not order:
+        return table
+    existing = [idx for idx in table.index if idx not in order]
+    return table.reindex(order + existing)
 
 
 def numeric_histogram(df: pd.DataFrame, schema: Schema, config: AEDConfig, column: str) -> Figure:
@@ -177,7 +201,7 @@ def categorical_countplot(df: pd.DataFrame, schema: Schema, config: AEDConfig, c
     fig = _base_figure(config, width=8.0, height=4.0)
     ax = fig.add_subplot(1, 1, 1)
     if column == schema.dayofweek_col:
-        order = _observed_order(df[column], config.plots.day_order)
+        order = _dayofweek_order(df[column], config)
         sns.countplot(data=df, x=column, order=order, ax=ax)
     else:
         sns.countplot(data=df, x=column, ax=ax)
@@ -275,7 +299,7 @@ def mean_los_by_period(df: pd.DataFrame, schema: Schema, config: AEDConfig) -> F
 def los_by_dayofweek(df: pd.DataFrame, schema: Schema, config: AEDConfig) -> Figure:
     fig = _base_figure(config, width=12.0, height=6.0)
     ax = fig.add_subplot(1, 1, 1)
-    order = _observed_order(df[schema.dayofweek_col], config.plots.day_order)
+    order = _dayofweek_order(df[schema.dayofweek_col], config)
     sns.boxplot(data=df, x=schema.dayofweek_col, y=schema.los_col, order=order, ax=ax)
     ax.axhline(
         config.features.breach_threshold_minutes,

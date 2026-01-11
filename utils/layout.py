@@ -1,15 +1,45 @@
 import streamlit as st
+import pandas as pd
 
 def add_title(title: str, subtitle_mk: str = None):
   st.title(title)
   if subtitle_mk:
     st.markdown(subtitle_mk)
 
-def _ordered_days(days: list[str]) -> list[str]:
-    unique_days = list(dict.fromkeys(days))
-    preferred = [d for d in days if d in unique_days]
-    remaining = [d for d in unique_days if d not in days]
-    return preferred + remaining
+WEEKDAY_ORDER = [
+    "Mon", "Tue", "Wed",
+    "Thu", "Fri", "Sat", "Sun",
+]
+
+def order_days(days: list[str]) -> list[str]:
+    observed = (
+        pd.Series(days)
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist()
+    )
+
+    if not observed:
+        return []
+
+    # direct canonical match
+    canonical = [d for d in WEEKDAY_ORDER if d in observed]
+    if canonical:
+        return canonical
+
+    # abbreviation match (Mon, Tue, ...)
+    abbrev_map = {}
+    for v in observed:
+        abbrev = v[:3].title()
+        abbrev_map.setdefault(abbrev, v)
+
+    abbrev_order = [d[:3] for d in WEEKDAY_ORDER if d[:3] in abbrev_map]
+    if abbrev_order:
+        return [abbrev_map[a] for a in abbrev_order]
+
+    # final fallback: preserve observed order
+    return observed
 
 def card_container():
     return st.markdown(
