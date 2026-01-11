@@ -67,7 +67,7 @@ def render_title_section(container):
             "4-hour AED target, using an interpretable decision tree."
         )
 
-def proportion_bar(breach_pct, width=80):
+def proportion_bar(breach_pct, width=90):
     breach_width = int(breach_pct)
     non_breach_width = width - breach_width
 
@@ -191,11 +191,6 @@ def render_tree_section(container, analytics):
         st.subheader("Representative Decision Tree")
 
         render_tree_plot(analytics)
-
-        st.caption(
-            "The tree is shown for interpretability and reflects common "
-            "decision patterns observed across the model.", text_alignment='center'
-        )
 
 def render_rule_section(container, analytics):
     with container:
