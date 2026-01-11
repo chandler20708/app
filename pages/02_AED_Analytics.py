@@ -168,14 +168,7 @@ def render_tree_plot(_analytics):
         )
 
 
-
-
     dot_fixed = "\n".join(dot_lines)
-    st.caption(
-        "Each node displays the conditional breach probability (breach / total samples) "
-        "and the number of observations reaching that node. "
-        "Estimates for small sample sizes should be interpreted cautiously."
-    )
 
 
     # plot_tree(
