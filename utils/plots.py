@@ -100,7 +100,7 @@ def build_workload_chart(
             + util_text
             + total_text
         ).properties(
-            height=500, width=1200
+            height=460, width=1200
         )
 
 
