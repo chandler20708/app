@@ -127,7 +127,7 @@ def render_tree_plot(_analytics):
     <TD ALIGN="LEFT"><FONT POINT-SIZE="8">breach rate = {breach_pct:.1f}%</FONT></TD>
   </TR>
   <TR>
-    <TD ALIGN="LEFT"><FONT POINT-SIZE="8">dominant outcome = {pred_class_name}</FONT></TD>
+    <TD ALIGN="LEFT"><FONT POINT-SIZE="8">class = {pred_class_name}</FONT></TD>
   </TR>
   <TR>
     <TD>{bar}</TD>
