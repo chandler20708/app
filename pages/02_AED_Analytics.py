@@ -43,9 +43,6 @@ def prepare_aed_analytics():
         axis=1,
     )
 
-    st.write(X.columns)
-    st.write(tree_model.tree_.feature)
-
     rules = extract_rules(
         tree_model,
         feature_names=X.columns,
