@@ -67,7 +67,7 @@ def render_title_section(container):
             "4-hour AED target, using an interpretable decision tree."
         )
 
-def proportion_bar(breach_pct, width=90):
+def proportion_bar(breach_pct, width=100):
     breach_width = int(breach_pct)
     non_breach_width = width - breach_width
 
