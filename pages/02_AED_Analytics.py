@@ -67,7 +67,7 @@ def render_title_section(container):
             "4-hour AED target, using an interpretable decision tree."
         )
 
-def proportion_bar(breach_pct, width=100):
+def proportion_bar(breach_pct, width=90):
     breach_width = int(breach_pct)
     non_breach_width = width - breach_width
 
@@ -121,13 +121,13 @@ def render_tree_plot(_analytics):
     <TD ALIGN="LEFT"><B>{title}</B></TD>
   </TR>
   <TR>
-    <TD ALIGN="LEFT"><FONT POINT-SIZE="10">samples = {samples}</FONT></TD>
+    <TD ALIGN="LEFT"><FONT POINT-SIZE="8">samples = {samples}</FONT></TD>
   </TR>
   <TR>
-    <TD ALIGN="LEFT"><FONT POINT-SIZE="10">breach rate = {breach_pct:.1f}%</FONT></TD>
+    <TD ALIGN="LEFT"><FONT POINT-SIZE="8">breach rate = {breach_pct:.1f}%</FONT></TD>
   </TR>
   <TR>
-    <TD ALIGN="LEFT"><FONT POINT-SIZE="10">dominant outcome = {pred_class_name}</FONT></TD>
+    <TD ALIGN="LEFT"><FONT POINT-SIZE="8">dominant outcome = {pred_class_name}</FONT></TD>
   </TR>
   <TR>
     <TD>{bar}</TD>
