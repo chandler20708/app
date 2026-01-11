@@ -31,7 +31,6 @@ def prepare_aed_analytics():
     df = (
         load_aed_data(DATA_PATH)
     )
-    st.write(df)
 
     if df.empty:
         return None
