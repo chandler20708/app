@@ -121,13 +121,13 @@ def render_tree_plot(_analytics):
     <TD ALIGN="LEFT"><B>{title}</B></TD>
   </TR>
   <TR>
-    <TD ALIGN="LEFT"><FONT POINT-SIZE="8">samples = {samples}</FONT></TD>
+    <TD ALIGN="LEFT"><FONT POINT-SIZE="6">samples = {samples}</FONT></TD>
   </TR>
   <TR>
-    <TD ALIGN="LEFT"><FONT POINT-SIZE="8">breach rate = {breach_pct:.1f}%</FONT></TD>
+    <TD ALIGN="LEFT"><FONT POINT-SIZE="6">breach rate = {breach_pct:.1f}%</FONT></TD>
   </TR>
   <TR>
-    <TD ALIGN="LEFT"><FONT POINT-SIZE="8">class = {pred_class_name}</FONT></TD>
+    <TD ALIGN="LEFT"><FONT POINT-SIZE="6">class = {pred_class_name}</FONT></TD>
   </TR>
   <TR>
     <TD>{bar}</TD>
