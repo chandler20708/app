@@ -1,4 +1,5 @@
 import streamlit as st
+import polars as pl
 import matplotlib.pyplot as plt
 from sklearn.tree import plot_tree
 from pathlib import Path
@@ -27,7 +28,9 @@ def prepare_aed_analytics():
     DATA_PATH = Path("data/processed_data.parquet")
 
     tree_model = load_tree_model(TREE_PATH)
-    df = load_aed_data(DATA_PATH)
+    df = (
+        load_aed_data(DATA_PATH)
+    )
 
     if df.empty:
         return None
@@ -39,6 +42,9 @@ def prepare_aed_analytics():
         ],
         axis=1,
     )
+
+    st.write(X.columns)
+    st.write(tree_model.tree_.feature)
 
     rules = extract_rules(
         tree_model,
@@ -67,7 +73,7 @@ def render_title_section(container):
             "4-hour AED target, using an interpretable decision tree."
         )
 
-def proportion_bar(breach_pct, width=100):
+def proportion_bar(breach_pct, width=90):
     breach_width = int(breach_pct)
     non_breach_width = width - breach_width
 

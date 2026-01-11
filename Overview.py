@@ -3,7 +3,7 @@ from utils import add_title, card_container, close_card
 
 def add_op_overview():
   st.markdown(
-    "Purpose: Generate a feasible weekly rota that meets daily coverage requirements"
+    "Purpose: Generate a feasible weekly rota that meets daily coverage requirements "
     "while controlling labour cost and, where specified, promoting fair workload allocation.", unsafe_allow_html=True
   )
   st.markdown(
@@ -16,7 +16,7 @@ def add_op_overview():
 
 def add_aed_overview():
   st.markdown(
-    "Purpose: Explore historical performance against the NHS 4-hour AED target"
+    "Purpose: Explore historical performance against the NHS 4-hour AED target "
     "and identify patient segments associated with higher breach rates.", unsafe_allow_html=True
   )
   st.markdown(
@@ -53,8 +53,8 @@ def main_content():
       subtitle_mk="**Team Members**: Ashmi Fathima, Akash Somasundaran, Chia-Te Liu, Muhammad Raahim Sohail, Qutaybah Al Owaifeer, Wei-An Chen, Yi-Rou Lu"
     )
     st.write(
-      "This application combines operator scheduling optimisation and AED"
-      "performance analytics to support operational planning and monitoring in a single,"
+      "This application combines operator scheduling optimisation and AED "
+      "performance analytics to support operational planning and monitoring in a single, "
       "interpretable interface."
     )
 
@@ -68,7 +68,7 @@ def main_content():
       add_op_overview()
 
   with col2:
-    st.header("AED Patient Flow & Breach Analytics")
+    st.header("AED Breach Analytics")
     with st.container():
       st.markdown('<div class="card">', unsafe_allow_html=True)
       add_aed_overview()
