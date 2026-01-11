@@ -182,7 +182,7 @@ def render_tree_plot(_analytics):
     # )
     plt.title("Decision Logic Used to Identify High Breach Risk")
     graph = graphviz.Source(dot_fixed)
-    st.graphviz_chart(graph)
+    st.graphviz_chart(graph, height=400)
 
     # st.pyplot(fig, width="content")
 
