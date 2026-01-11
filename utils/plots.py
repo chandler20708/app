@@ -30,7 +30,7 @@ def build_workload_chart(
     # ---- Base stacked bars (VERTICAL) ----
     workload_chart = (
         alt.Chart(schedule_df)
-        .mark_bar(width=60, cornerRadius=20)
+        .mark_bar(width=80, cornerRadius=20)
         .encode(
             x=alt.X("student:N", sort=student_order, title=None),
             y=alt.Y("hours:Q", stack="zero", title="Hours"),
