@@ -251,7 +251,7 @@ def render_sidebar_and_problem() -> tuple[ProblemContext, Dict[str, object], Opt
         run_clicked = st.button("Run optimisation", width="stretch")
         st.markdown("---")
         use_availability_view = st.toggle(
-            "Use availability-normalised fairness view",
+            "Use resource utilisation fairness view",
             value=False,
             key="fairness_view_toggle",
         )
@@ -698,7 +698,7 @@ def render_results(
     with kpi_section:
         active_view = availability_view if use_availability else solution_view
         view_label = (
-            "Equitable Resource Utilization"
+            "Equitable Resource Utilisation"
             if use_availability
             else "Equitable Hour Distribution"
         )
