@@ -25,7 +25,7 @@ def init_session():
 
 def prepare_aed_analytics():
     TREE_PATH = Path("./models/tree_to_plot.joblib")
-    DATA_PATH = Path("data/processed_data.parquet")
+    DATA_PATH = Path("./data/processed_data.parquet")
 
     tree_model = load_tree_model(TREE_PATH)
     df = (
