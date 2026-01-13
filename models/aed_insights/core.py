@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import Dict, Tuple
 
 import pandas as pd
+from kneed import KneeLocator
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
 from models.aed_insights.config import AEDConfig
 
@@ -156,12 +159,42 @@ def add_investigation_cluster(df: pd.DataFrame, schema: Schema, config: AEDConfi
     result = df.copy()
     if schema.noofinvestigation_col not in result.columns:
         return result
-    values = result[schema.noofinvestigation_col].fillna(0).astype(int)
-    result[schema.investigation_cluster_col] = pd.cut(
-        values,
-        bins=config.features.investigation_cluster_bins,
-        labels=config.features.investigation_cluster_labels,
-    ).astype(int)
+    if not config.features.make_investigation_cluster:
+        return result
+    values = result[[schema.noofinvestigation_col]].copy()
+    scaler = StandardScaler()
+    scaled = scaler.fit_transform(values)
+
+    k_min = config.features.investigation_cluster_k_min
+    k_max = config.features.investigation_cluster_k_max
+    k_range = range(k_min, k_max + 1)
+    inertia = []
+
+    for k in k_range:
+        kmeans = KMeans(
+            n_clusters=k,
+            random_state=config.data.random_state,
+            n_init=config.features.investigation_cluster_n_init,
+            algorithm=config.features.investigation_cluster_algorithm,
+        )
+        kmeans.fit(scaled)
+        inertia.append(kmeans.inertia_)
+
+    kneedle = KneeLocator(
+        list(k_range),
+        inertia,
+        curve="convex",
+        direction="decreasing",
+    )
+    optimal_k = int(kneedle.elbow or config.features.investigation_cluster_default_k)
+
+    kmeans = KMeans(
+        n_clusters=optimal_k,
+        random_state=config.data.random_state,
+        n_init=config.features.investigation_cluster_n_init,
+        algorithm=config.features.investigation_cluster_algorithm,
+    )
+    result[schema.investigation_cluster_col] = kmeans.fit_predict(scaled)
     return result
 
 

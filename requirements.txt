@@ -8,7 +8,9 @@ openpyxl==3.1.5
 pillow==11.3.0
 plotly==6.5.0
 joblib==1.5.3
+kneed==0.8.5
 scikit-learn==1.7.0
+xgboost==2.1.4
 graphviz==0.21
 seaborn==0.13.2
 statsmodels==0.14.6

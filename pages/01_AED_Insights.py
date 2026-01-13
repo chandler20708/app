@@ -1,11 +1,34 @@
 """Streamlit page for AED analytics outputs."""
 
 from typing import Dict
+import os
+import time
+from pathlib import Path
+import sys
 
 import streamlit as st
 
 from models.aed_insights.config import AEDConfig
 from models.aed_insights.registry import AnalyticsRegistry
+
+AED_DEBUG = os.getenv("AED_DEBUG", "").lower() in {"1", "true", "yes", "y"}
+_ARTIFACT_LOAD_TS: float | None = None
+
+def _ensure_libomp_path() -> None:
+    if sys.platform != "darwin":
+        return
+    candidates = [
+        Path("/opt/homebrew/opt/libomp/lib"),
+        Path("/usr/local/opt/libomp/lib"),
+    ]
+    for path in candidates:
+        if (path / "libomp.dylib").exists():
+            current = os.environ.get("DYLD_LIBRARY_PATH", "")
+            parts = [p for p in current.split(":") if p]
+            if str(path) not in parts:
+                parts.insert(0, str(path))
+                os.environ["DYLD_LIBRARY_PATH"] = ":".join(parts)
+            break
 
 
 @st.cache_resource
@@ -14,15 +37,30 @@ def _load_registry() -> AnalyticsRegistry:
 
 
 @st.cache_resource
-def _load_artifacts() -> Dict[str, object]:
+def _load_artifacts(xgb_key: str) -> Dict[str, object]:
+    # Force Streamlit cache to depend on XGBoost availability/version
+    _ = xgb_key
+    global _ARTIFACT_LOAD_TS
+    if AED_DEBUG:
+        _ARTIFACT_LOAD_TS = time.time()
     registry = _load_registry()
     return registry.all_artifacts()
 
+def _xgb_cache_key() -> str:
+    _ensure_libomp_path()
+    try:
+        import xgboost  # type: ignore
+    except Exception as exc:
+        return f"missing:{exc.__class__.__name__}"
+    return f"ok:{xgboost.__version__}"
 
 def _render_tables(tables: Dict[str, object], title: str) -> None:
     st.subheader(title)
     for name, table in tables.items():
         st.markdown(f"**{name.replace('_', ' ').title()}**")
+        if AED_DEBUG and hasattr(table, "columns") and "Model" in table.columns:
+            st.write({"shape": getattr(table, "shape", None), "name": name})
+            st.write(table[table["Model"].astype(str).str.contains("XGB", na=False)])
         st.dataframe(table, width='stretch')
 
 
@@ -73,11 +111,21 @@ def main() -> None:
         "Predictive modelling is conducted using the full AED dataset to maximise statistical power and stability."
     )
 
-    artifacts = _load_artifacts()
+    xgb_key = _xgb_cache_key()
+    artifacts = _load_artifacts(xgb_key)
+    if AED_DEBUG:
+        st.write({"xgb_key": xgb_key, "artifact_load_ts": _ARTIFACT_LOAD_TS})
 
     descriptive = artifacts["descriptive"]
     inference = artifacts["inference"]
     modelling = artifacts["modelling"]
+    if AED_DEBUG:
+        st.write(
+            {
+                "xgb_available": modelling.metadata.get("xgb_available"),
+                "xgb_import_error": modelling.metadata.get("xgb_import_error"),
+            }
+        )
 
     descriptive_tab, inference_tab, modelling_tab = st.tabs(
         ["Descriptive", "Inference", "Modelling"]

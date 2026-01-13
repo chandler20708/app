@@ -1,4 +1,4 @@
-.PHONY: help venv install shell setup run clean
+.PHONY: help venv install openmp shell setup run clean
 
 VENV_DIR := .venv
 PYTHON := $(VENV_DIR)/bin/python
@@ -7,7 +7,8 @@ PIP := $(VENV_DIR)/bin/pip
 help:
 	@echo "Targets:"
 	@echo "  make venv    - Create virtual environment"
-	@echo "  make install - Install dependencies (and Graphviz)"
+	@echo "  make install - Install dependencies (Graphviz + OpenMP)"
+	@echo "  make openmp  - Install OpenMP runtime (libomp/libgomp)"
 	@echo "  make shell   - Open a shell with the venv activated"
 	@echo "  make setup   - Install everything and open the venv shell"
 	@echo "  make run     - Run Streamlit app"
@@ -56,8 +57,32 @@ install: venv
 		exit 1; \
 	fi; \
 	echo "If 'dot' is not found, restart your terminal to refresh PATH."
+	$(MAKE) openmp
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
+
+openmp:
+	@if [ "$$(uname -s)" = "Linux" ]; then \
+		if command -v apt >/dev/null 2>&1; then \
+			sudo apt install libgomp1; \
+		elif command -v dnf >/dev/null 2>&1; then \
+			sudo dnf install libgomp; \
+		else \
+			echo "No supported Linux package manager found. Install OpenMP runtime manually (libgomp)."; \
+			exit 1; \
+		fi; \
+	elif [ "$$(uname -s)" = "Darwin" ]; then \
+		if command -v brew >/dev/null 2>&1; then \
+			brew install libomp; \
+		elif command -v port >/dev/null 2>&1; then \
+			sudo port install libomp; \
+		else \
+			echo "Install OpenMP runtime manually (libomp), then re-run make install."; \
+			exit 1; \
+		fi; \
+	elif [ "$$OS" = "Windows_NT" ] || echo "$$(uname -s)" | grep -qiE "mingw|msys|cygwin"; then \
+		echo "Install OpenMP runtime for XGBoost on Windows (vcomp140.dll/libgomp-1.dll) if needed."; \
+	fi
 
 run: install
 	$(PYTHON) -m streamlit run Overview.py

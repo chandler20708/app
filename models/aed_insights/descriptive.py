@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import Dict, Iterable, List
 
-import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from matplotlib.figure import Figure
@@ -110,6 +109,48 @@ def correlation_matrix(df: pd.DataFrame, schema: Schema) -> pd.DataFrame:
     return df[present].corr(method="pearson").round(3)
 
 
+def detect_variable_types(
+    df: pd.DataFrame,
+    config: AEDConfig,
+) -> Dict[str, List[str]]:
+    """Detect numeric and categorical variables with domain overrides."""
+    threshold = config.descriptive.categorical_threshold
+    force_categorical = set(config.descriptive.force_categorical)
+    force_numeric = set(config.descriptive.force_numeric)
+    ignore_columns = set(config.descriptive.ignore_columns)
+
+    numeric_vars: List[str] = []
+    categorical_vars: List[str] = []
+
+    for col in df.columns:
+        if col in ignore_columns:
+            continue
+        if col in force_categorical:
+            categorical_vars.append(col)
+            continue
+        if col in force_numeric:
+            numeric_vars.append(col)
+            continue
+
+        series = df[col]
+
+        if pd.api.types.is_object_dtype(series) or pd.api.types.is_categorical_dtype(series):
+            categorical_vars.append(col)
+            continue
+
+        if pd.api.types.is_numeric_dtype(series):
+            n_unique = series.nunique(dropna=True)
+            if n_unique <= threshold:
+                categorical_vars.append(col)
+            else:
+                numeric_vars.append(col)
+            continue
+
+        categorical_vars.append(col)
+
+    return {"numeric": numeric_vars, "categorical": categorical_vars}
+
+
 def build_descriptive_tables(
     df: pd.DataFrame,
     config: AEDConfig,
@@ -153,10 +194,7 @@ def build_descriptive_tables(
 
 
 def _base_figure(config: AEDConfig, width: float = None, height: float = None) -> Figure:
-    fig = plt.figure(
-        figsize=(width or config.plots.figure_width, height or config.plots.figure_height)
-    )
-    return fig
+    return Figure(figsize=(width or config.plots.figure_width, height or config.plots.figure_height))
 
 
 def _observed_order(values: Iterable[str], preferred: Iterable[str]) -> List[str]:

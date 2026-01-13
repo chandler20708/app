@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
+import itertools
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -10,7 +12,10 @@ from scipy import stats
 import statsmodels.api as sm
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.sm_exceptions import PerfectSeparationError
+from kneed import KneeLocator
+from sklearn.cluster import KMeans
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 
 from models.aed_insights.config import AEDConfig
 from models.aed_insights.core import Schema, get_schema
@@ -184,6 +189,147 @@ def categorical_association_test(
     }
 
 
+def _cramers_v(contingency: pd.DataFrame, chi2: float) -> float:
+    n = contingency.to_numpy().sum()
+    if n == 0:
+        return np.nan
+    r, c = contingency.shape
+    denom = min(r - 1, c - 1)
+    if denom <= 0:
+        return np.nan
+    phi2 = chi2 / n
+    return float(np.sqrt(phi2 / denom))
+
+
+def k_means_on_others_copy(df: pd.DataFrame, config: AEDConfig, schema: Schema) -> pd.DataFrame:
+    """Run K-Means on selected numeric variables and test association with breach."""
+    results = []
+    k_range = range(config.inference.kmeans_k_min, config.inference.kmeans_k_max + 1)
+
+    for var in config.inference.kmeans_vars:
+        if var not in df.columns:
+            continue
+
+        X = df[[var]].copy()
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        inertia = []
+        for k in k_range:
+            kmeans = KMeans(
+                n_clusters=k,
+                random_state=config.data.random_state,
+                n_init=config.inference.kmeans_n_init,
+                algorithm=config.inference.kmeans_algorithm,
+            )
+            kmeans.fit(X_scaled)
+            inertia.append(kmeans.inertia_)
+
+        kneedle = KneeLocator(
+            list(k_range),
+            inertia,
+            curve="convex",
+            direction="decreasing",
+        )
+        optimal_k = int(kneedle.elbow or config.inference.kmeans_k_min)
+
+        kmeans = KMeans(
+            n_clusters=optimal_k,
+            random_state=config.data.random_state,
+            n_init=config.inference.kmeans_n_init,
+            algorithm=config.inference.kmeans_algorithm,
+        )
+        clusters = kmeans.fit_predict(X_scaled)
+
+        ct = pd.crosstab(clusters, df[schema.breach_flag_col])
+        chi2, p_value, dof, _ = stats.chi2_contingency(ct)
+        cramers_v = _cramers_v(ct, chi2)
+
+        results.append(
+            {
+                "Variable": var,
+                "Optimal_k": optimal_k,
+                "Chi_square": chi2,
+                "p_value": p_value,
+                "Cramers_V": cramers_v,
+            }
+        )
+
+    return pd.DataFrame(results)
+
+
+def categorical_comp(df: pd.DataFrame, config: AEDConfig, schema: Schema) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Run categorical association tests with Task5-style grouping logic."""
+    results = []
+    day_band_rows = []
+
+    for var in config.inference.categorical_vars:
+        if var not in df.columns:
+            continue
+
+        if var == schema.day_col:
+            day_band = pd.cut(
+                df[var],
+                bins=config.inference.day_band_bins,
+                labels=config.inference.day_band_labels,
+            )
+            band_df = df.assign(day_band=day_band)
+            bands = list(band_df["day_band"].cat.categories)
+
+            for b1, b2 in itertools.combinations(bands, 2):
+                sub = band_df[band_df["day_band"].isin([b1, b2])]
+                ct_band = pd.crosstab(sub["day_band"], sub[schema.breach_flag_col])
+                if ct_band.shape != (2, 2):
+                    continue
+                odds_ratio, fisher_p = stats.fisher_exact(ct_band)
+                day_band_rows.append(
+                    {
+                        "Band_A": str(b1),
+                        "Band_B": str(b2),
+                        "Odds_Ratio": odds_ratio,
+                        "p_value": fisher_p,
+                    }
+                )
+            continue
+
+        if var == schema.period_col:
+            period_counts = df[var].value_counts()
+            rare_periods = period_counts[period_counts < config.inference.period_min_count].index
+            period_grp = df[var].replace(rare_periods, "Other")
+            ct = pd.crosstab(period_grp, df[schema.breach_flag_col])
+            chi2, p_value, dof, _ = stats.chi2_contingency(ct)
+            cramers_v = _cramers_v(ct, chi2)
+            results.append(
+                {
+                    "Variable": f"{var}_grouped",
+                    "Test": "chi_square",
+                    "Chi_square": chi2,
+                    "Dof": dof,
+                    "p_value": p_value,
+                    "Cramers_V": cramers_v,
+                    "Notes": "Grouped rare periods",
+                }
+            )
+            continue
+
+        ct = pd.crosstab(df[var], df[schema.breach_flag_col])
+        chi2, p_value, dof, _ = stats.chi2_contingency(ct)
+        cramers_v = _cramers_v(ct, chi2)
+        results.append(
+            {
+                "Variable": var,
+                "Test": "chi_square",
+                "Chi_square": chi2,
+                "Dof": dof,
+                "p_value": p_value,
+                "Cramers_V": cramers_v,
+                "Notes": "",
+            }
+        )
+
+    return pd.DataFrame(results), pd.DataFrame(day_band_rows)
+
+
 def logit_single_predictor(
     df: pd.DataFrame,
     predictor: str,
@@ -212,23 +358,28 @@ def l2_logistic_odds_ratios(
     df: pd.DataFrame,
     numeric_cols: List[str],
     cat_cols: List[str],
+    extra_cols: List[str],
     target_col: str,
     config: AEDConfig,
 ) -> pd.DataFrame:
     """Fit L2-regularized logistic regression and return odds ratios."""
-    use_cols = [c for c in numeric_cols + cat_cols if c in df.columns]
+    extra_cols = [col for col in extra_cols if col not in cat_cols + numeric_cols]
+    use_cols = [c for c in (numeric_cols + cat_cols + extra_cols) if c in df.columns]
     if not use_cols:
         return pd.DataFrame()
     X = pd.get_dummies(df[use_cols], drop_first=True).astype(float)
     y = df[target_col].astype(int)
 
-    model = LogisticRegression(
-        penalty="l2",
-        solver=config.inference.l2_logreg_solver,
-        max_iter=config.inference.l2_logreg_max_iter,
-        class_weight=config.inference.l2_logreg_class_weight,
-    )
-    model.fit(X, y)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        model = LogisticRegression(
+            penalty="l2",
+            solver=config.inference.l2_logreg_solver,
+            max_iter=config.inference.l2_logreg_max_iter,
+            C=config.inference.l2_logreg_c,
+            class_weight=config.inference.l2_logreg_class_weight,
+        )
+        model.fit(X, y)
     or_df = pd.DataFrame({"Feature": X.columns, "Odds_Ratio": np.exp(model.coef_[0])})
     return or_df.sort_values("Odds_Ratio", ascending=False).reset_index(drop=True)
 
@@ -263,16 +414,15 @@ def build_inference_tables(
             if key not in combined:
                 combined[key] = value
         mw_rows.append(combined)
-    tables["mann_whitney"] = pd.DataFrame(mw_rows)
+    mw_table = pd.DataFrame(mw_rows)
+    if not mw_table.empty:
+        mw_table = mw_table.set_index("var")[["U", "p_value"]]
+    tables["mann_whitney"] = mw_table
 
-    cat_rows: List[dict] = []
-    for feature in config.inference.categorical_vars:
-        if feature not in df.columns:
-            continue
-        cat_rows.append(
-            categorical_association_test(df, feature, schema.breach_flag_col)
-        )
-    tables["categorical_tests"] = pd.DataFrame(cat_rows)
+    categorical_table, day_band_pairs = categorical_comp(df, config, schema)
+    tables["categorical_tests"] = categorical_table
+    if not day_band_pairs.empty:
+        tables["day_band_pairwise_fisher"] = day_band_pairs
 
     if config.inference.logit_single_predictor in df.columns:
         logit_table = logit_single_predictor(
@@ -287,10 +437,16 @@ def build_inference_tables(
     l2_numeric = list(config.inference.l2_numeric_predictors)
     if schema.investigation_cluster_col in df.columns and schema.investigation_cluster_col not in l2_numeric:
         l2_numeric.append(schema.investigation_cluster_col)
+    extra_cols: List[str] = []
+    if schema.investigation_cluster_col in df.columns:
+        extra_cols.append(schema.investigation_cluster_col)
+    if schema.hrg_group_col in df.columns:
+        extra_cols.append(schema.hrg_group_col)
     l2_table = l2_logistic_odds_ratios(
         df,
         l2_numeric,
         list(config.inference.l2_categorical_predictors),
+        extra_cols,
         schema.breach_flag_col,
         config,
     )
@@ -301,5 +457,9 @@ def build_inference_tables(
         vif_cols.append(schema.investigation_cluster_col)
     vif_table = compute_vif(df, vif_cols)
     tables["vif"] = vif_table.head(15)
+
+    kmeans_table = k_means_on_others_copy(df, config, schema)
+    if not kmeans_table.empty:
+        tables["kmeans_on_numeric"] = kmeans_table
 
     return tables
