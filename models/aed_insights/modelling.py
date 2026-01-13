@@ -293,19 +293,19 @@ def train_models(
     results.append(_evaluate_model("RF_Main", rf_main, X_train, X_val_main, X_test, y_train, y_val, y_test, config))
     models["rf_main"] = rf_main
 
-    X_val_main_np = X_val_main.to_numpy()
-    rf_proba = rf_main.predict_proba(X_val_main_np)[:, 1]
-    tree_distances = []
-    for i, tree in enumerate(rf_main.estimators_):
-        tree_proba = tree.predict_proba(X_val_main_np)[:, 1]
-        distance = np.mean((tree_proba - rf_proba) ** 2)
-        tree_distances.append((i, distance))
-    rep_idx = min(tree_distances, key=lambda x: x[1])[0]
-    tree_to_plot = rf_main.estimators_[rep_idx]
-    tree_path = Path(config.modelling.representative_tree_path)
-    tree_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(tree_path, "wb") as fo:
-        joblib.dump(tree_to_plot, fo, compress=3)
+    # X_val_main_np = X_val_main.to_numpy()
+    # rf_proba = rf_main.predict_proba(X_val_main_np)[:, 1]
+    # tree_distances = []
+    # for i, tree in enumerate(rf_main.estimators_):
+    #     tree_proba = tree.predict_proba(X_val_main_np)[:, 1]
+    #     distance = np.mean((tree_proba - rf_proba) ** 2)
+    #     tree_distances.append((i, distance))
+    # rep_idx = min(tree_distances, key=lambda x: x[1])[0]
+    # tree_to_plot = rf_main.estimators_[rep_idx]
+    # tree_path = Path(config.modelling.representative_tree_path)
+    # tree_path.parent.mkdir(parents=True, exist_ok=True)
+    # with open(tree_path, "wb") as fo:
+    #     joblib.dump(tree_to_plot, fo, compress=3)
 
     X_rf_all, y_rf_all, rf_all_features = build_design_matrix(
         df,
