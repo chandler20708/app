@@ -7,6 +7,7 @@ import pandas as pd
 from sklearn.tree import export_graphviz
 import graphviz
 import re
+import shutil
 
 from models import load_aed_data, load_tree_model, extract_rules
 from utils import format_rule_for_management
@@ -84,7 +85,29 @@ def proportion_bar(breach_pct, width=90):
     """
 
 def export_tree_png(graph, filename: str = "aed_breach_decision_tree.png"):
-    png_bytes = graph.pipe(format="png")
+    if shutil.which("dot") is None:
+        st.warning("Graphviz is not available on this host, so PNG export is disabled.")
+        st.markdown("Install Graphviz: https://graphviz.org/download/")
+        st.download_button(
+            label="Download tree as DOT",
+            data=graph.source.encode("utf-8"),
+            file_name="aed_breach_decision_tree.dot",
+            mime="text/vnd.graphviz",
+        )
+        return
+
+    try:
+        png_bytes = graph.pipe(format="png")
+    except Exception:
+        st.warning("Could not render the PNG on this host. You can download the DOT file instead.")
+        st.markdown("Install Graphviz: https://graphviz.org/download/")
+        st.download_button(
+            label="Download tree as DOT",
+            data=graph.source.encode("utf-8"),
+            file_name="aed_breach_decision_tree.dot",
+            mime="text/vnd.graphviz",
+        )
+        return
 
     st.download_button(
         label="Download tree as PNG",
@@ -154,10 +177,10 @@ def render_tree_plot(_analytics):
     <TD ALIGN="LEFT"><B>{title}</B></TD>
   </TR>
   <TR>
-    <TD ALIGN="LEFT"><FONT POINT-SIZE="10">samples = {samples}</FONT></TD>
+    <TD ALIGN="LEFT"><FONT POINT-SIZE="10">samples = {samples:,}</FONT></TD>
   </TR>
   <TR>
-    <TD ALIGN="LEFT"><FONT POINT-SIZE="10">breach rate = {breach_pct:.1f}%</FONT></TD>
+    <TD ALIGN="LEFT"><FONT POINT-SIZE="10">breach rate = {breach_pct:.2f}%</FONT></TD>
   </TR>
   <TR>
     <TD ALIGN="LEFT"><FONT POINT-SIZE="10">class = {pred_class_name}</FONT></TD>
