@@ -28,10 +28,13 @@ def numeric_summary(df: pd.DataFrame, schema: Schema) -> pd.DataFrame:
 
 def data_quality_summary(df: pd.DataFrame, schema: Schema) -> pd.DataFrame:
     """Summarize missingness, duplicates, and basic integrity checks."""
-    row_count = len(df)
-    col_count = len(df.columns)
-    duplicate_rows = int(df.duplicated().sum())
-    missing_total = int(df.isna().sum().sum())
+    raw_cols = [col for col in schema.required_cols if col in df.columns]
+    base_df = df[raw_cols] if raw_cols else df
+
+    row_count = len(base_df)
+    col_count = len(base_df.columns)
+    duplicate_rows = int(base_df.duplicated().sum())
+    missing_total = int(base_df.isna().sum().sum())
     missing_pct = round((missing_total / max(row_count * col_count, 1)) * 100, 3)
 
     metrics = [
@@ -42,9 +45,9 @@ def data_quality_summary(df: pd.DataFrame, schema: Schema) -> pd.DataFrame:
         {"metric": "missing_pct_total", "value": missing_pct},
     ]
 
-    if schema.id_col in df.columns:
-        unique_ids = int(df[schema.id_col].nunique(dropna=True))
-        duplicate_ids = int(df[schema.id_col].duplicated().sum())
+    if schema.id_col in base_df.columns:
+        unique_ids = int(base_df[schema.id_col].nunique(dropna=True))
+        duplicate_ids = int(base_df[schema.id_col].duplicated().sum())
         metrics.extend(
             [
                 {"metric": "unique_id_count", "value": unique_ids},

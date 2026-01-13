@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 import numpy as np
 import pandas as pd
 import joblib
+from matplotlib.figure import Figure
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -24,12 +25,10 @@ from sklearn.metrics import (
     recall_score,
     auc,
 )
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import learning_curve, train_test_split
 
 from models.aed_insights.config import AEDConfig
 from models.aed_insights.core import get_schema
-
-AED_DEBUG = os.getenv("AED_DEBUG", "").lower() in {"1", "true", "yes", "y"}
 
 def _ensure_libomp_path() -> None:
     if sys.platform != "darwin":
@@ -247,6 +246,43 @@ def _evaluate_dummy(
     }
 
 
+def plot_learning_curve(
+    estimator: Any,
+    X: pd.DataFrame,
+    y: pd.Series,
+    config: AEDConfig,
+    title: str,
+) -> Figure:
+    """Generate a learning curve figure for a fitted estimator."""
+    train_sizes, train_scores, val_scores = learning_curve(
+        estimator,
+        X,
+        y,
+        cv=config.modelling.learning_curve_cv,
+        train_sizes=config.modelling.learning_curve_train_sizes,
+        scoring=config.modelling.learning_curve_scoring,
+        n_jobs=None,
+    )
+
+    train_mean = train_scores.mean(axis=1)
+    train_std = train_scores.std(axis=1)
+    val_mean = val_scores.mean(axis=1)
+    val_std = val_scores.std(axis=1)
+
+    fig = Figure(figsize=(8, 6))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(train_sizes, train_mean, marker="o", label="Training score")
+    ax.fill_between(train_sizes, train_mean - train_std, train_mean + train_std, alpha=0.2)
+    ax.plot(train_sizes, val_mean, marker="o", label="Validation score")
+    ax.fill_between(train_sizes, val_mean - val_std, val_mean + val_std, alpha=0.2)
+    ax.set_xlabel("Training set size")
+    ax.set_ylabel(config.modelling.learning_curve_scoring.replace("_", " ").title())
+    ax.set_title(title)
+    ax.legend(loc="best")
+    ax.grid(True)
+    return fig
+
+
 def _unavailable_model_row(model_name: str) -> Dict[str, Any]:
     return {
         "Model": model_name,
@@ -272,13 +308,14 @@ def _unavailable_model_row(model_name: str) -> Dict[str, Any]:
 def train_models(
     df: pd.DataFrame,
     config: AEDConfig,
-) -> Tuple[Dict[str, Any], Dict[str, pd.DataFrame], Dict[str, Any]]:
+) -> Tuple[Dict[str, Any], Dict[str, pd.DataFrame], Dict[str, Any], Dict[str, Figure]]:
     """Train models and assemble the two required modelling tables."""
     schema = get_schema()
     target_col = schema.breach_flag_col
 
     results: List[Dict[str, Any]] = []
     models: Dict[str, Any] = {}
+    figures: Dict[str, Figure] = {}
 
     X_main, y_main, main_features = build_design_matrix(
         df,
@@ -292,6 +329,16 @@ def train_models(
     rf_main = RandomForestClassifier(**config.modelling.rf_params)
     results.append(_evaluate_model("RF_Main", rf_main, X_train, X_val_main, X_test, y_train, y_val, y_test, config))
     models["rf_main"] = rf_main
+    if config.modelling.show_learning_curves:
+        X_tv = pd.concat([X_train, X_val_main], axis=0)
+        y_tv = pd.concat([y_train, y_val], axis=0)
+        figures["learning_curve_rf_main"] = plot_learning_curve(
+            rf_main,
+            X_tv,
+            y_tv,
+            config,
+            "Learning Curve — RF_Main",
+        )
 
     # X_val_main_np = X_val_main.to_numpy()
     # rf_proba = rf_main.predict_proba(X_val_main_np)[:, 1]
@@ -317,6 +364,16 @@ def train_models(
     rf_all = RandomForestClassifier(**config.modelling.rf_params)
     results.append(_evaluate_model("RF_All", rf_all, X_train, X_val, X_test, y_train, y_val, y_test, config))
     models["rf_all"] = rf_all
+    if config.modelling.show_learning_curves:
+        X_tv = pd.concat([X_train, X_val], axis=0)
+        y_tv = pd.concat([y_train, y_val], axis=0)
+        figures["learning_curve_rf_all"] = plot_learning_curve(
+            rf_all,
+            X_tv,
+            y_tv,
+            config,
+            "Learning Curve — RF_All",
+        )
 
     X_lr_main, y_lr_main, lr_main_features = build_design_matrix(
         df,
@@ -328,6 +385,16 @@ def train_models(
     lr_main = LogisticRegression(**config.modelling.logreg_params)
     results.append(_evaluate_model("LR_Main", lr_main, X_train, X_val, X_test, y_train, y_val, y_test, config))
     models["lr_main"] = lr_main
+    if config.modelling.show_learning_curves:
+        X_tv = pd.concat([X_train, X_val], axis=0)
+        y_tv = pd.concat([y_train, y_val], axis=0)
+        figures["learning_curve_lr_main"] = plot_learning_curve(
+            lr_main,
+            X_tv,
+            y_tv,
+            config,
+            "Learning Curve — LR_Main",
+        )
 
     X_lr_all, y_lr_all, lr_all_features = build_design_matrix(
         df,
@@ -340,6 +407,16 @@ def train_models(
     lr_all = LogisticRegression(**config.modelling.logreg_params_all)
     results.append(_evaluate_model("LR_All", lr_all, X_train, X_val, X_test, y_train, y_val, y_test, config))
     models["lr_all"] = lr_all
+    if config.modelling.show_learning_curves:
+        X_tv = pd.concat([X_train, X_val], axis=0)
+        y_tv = pd.concat([y_train, y_val], axis=0)
+        figures["learning_curve_lr_all"] = plot_learning_curve(
+            lr_all,
+            X_tv,
+            y_tv,
+            config,
+            "Learning Curve — LR_All",
+        )
 
     xgb_error: str | None = None
     _ensure_libomp_path()
@@ -348,13 +425,9 @@ def train_models(
         import xgboost  # type: ignore
     except Exception as exc:
         xgb_error = str(exc)
-        if AED_DEBUG:
-            print(f"[AED_DEBUG] XGBoost import failed: {xgb_error}")
         results.append(_unavailable_model_row("XGB_Main"))
         results.append(_unavailable_model_row("XGB_All"))
     else:
-        if AED_DEBUG:
-            print(f"[AED_DEBUG] XGBoost import ok: {xgboost.__version__}")
         discrete_features = list(config.modelling.main_numeric)
         categorical_features = list(config.modelling.main_categorical)
 
@@ -375,6 +448,16 @@ def train_models(
             )
         )
         models["xgb_main"] = xgb_main
+        if config.modelling.show_learning_curves:
+            X_tv = pd.concat([X_train, X_val], axis=0)
+            y_tv = pd.concat([y_train, y_val], axis=0)
+            figures["learning_curve_xgb_main"] = plot_learning_curve(
+                xgb_main,
+                X_tv,
+                y_tv,
+                config,
+                "Learning Curve — XGB_Main",
+            )
 
         X_numeric = df[list(config.modelling.all_numeric)].astype(float)
         X_discrete = pd.get_dummies(
@@ -397,76 +480,22 @@ def train_models(
             )
         )
         models["xgb_all"] = xgb_all
-
-    if AED_DEBUG and results:
-        tail = results[-2:]
-        print("[AED_DEBUG] XGB result tail:")
-        for row in tail:
-            keys = sorted(row.keys())
-            types = {key: type(row[key]).__name__ for key in row}
-            nan_keys = [
-                key
-                for key, value in row.items()
-                if value is None or (isinstance(value, float) and np.isnan(value))
-            ]
-            print(
-                {
-                    "Model": row.get("Model"),
-                    "keys": keys,
-                    "types": types,
-                    "nan_keys": nan_keys,
-                }
+        if config.modelling.show_learning_curves:
+            X_tv = pd.concat([X_train, X_val], axis=0)
+            y_tv = pd.concat([y_train, y_val], axis=0)
+            figures["learning_curve_xgb_all"] = plot_learning_curve(
+                xgb_all,
+                X_tv,
+                y_tv,
+                config,
+                "Learning Curve — XGB_All",
             )
 
     df_all = pd.DataFrame(results)
-    if AED_DEBUG and not df_all.empty:
-        print(
-            {
-                "df_all_shape": df_all.shape,
-                "models": df_all["Model"].astype(str).tolist() if "Model" in df_all.columns else None,
-                "dtypes": df_all.dtypes.astype(str).to_dict(),
-            }
-        )
-        if "Model" in df_all.columns:
-            subset_cols = [
-                "Model",
-                "Threshold",
-                "Accuracy",
-                "Recall_Breach",
-                "Precision_Breach",
-                "FP",
-                "FN",
-                "Train_PR_AUC",
-                "Test_PR_AUC",
-            ]
-            subset_cols = [col for col in subset_cols if col in df_all.columns]
-            print(
-                df_all[df_all["Model"].astype(str).str.contains("XGB", na=False)][
-                    subset_cols
-                ].to_string(index=False)
-            )
     df_sorted = df_all.sort_values(
         by=["Recall_Breach", "F2_Breach", "FN"],
         ascending=[False, False, True],
     ).reset_index(drop=True)
-    if AED_DEBUG and not df_sorted.empty and "Model" in df_sorted.columns:
-        subset_cols = [
-            "Model",
-            "Threshold",
-            "Accuracy",
-            "Recall_Breach",
-            "Precision_Breach",
-            "FP",
-            "FN",
-            "Train_PR_AUC",
-            "Test_PR_AUC",
-        ]
-        subset_cols = [col for col in subset_cols if col in df_sorted.columns]
-        print(
-            df_sorted[df_sorted["Model"].astype(str).str.contains("XGB", na=False)][
-                subset_cols
-            ].to_string(index=False)
-        )
 
     df_full = df_sorted[
         [
@@ -514,4 +543,4 @@ def train_models(
         "xgb_available": xgb_error is None,
         "xgb_import_error": xgb_error,
     }
-    return models, tables, metadata
+    return models, tables, metadata, figures

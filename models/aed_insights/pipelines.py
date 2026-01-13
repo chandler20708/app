@@ -58,8 +58,8 @@ def run_modelling_pipeline(config: Optional[AEDConfig] = None) -> ModellingArtif
     df = repo.load_raw()
     df = build_featured_df(df, config, schema)
 
-    models, tables, metadata = train_models(df, config)
+    models, tables, metadata, figures = train_models(df, config)
     metadata = dict(metadata)
     metadata["models"] = models
     metadata["data_path"] = str(config.data.data_path)
-    return ModellingArtifacts(tables=tables, figures={}, metadata=metadata)
+    return ModellingArtifacts(tables=tables, figures=figures, metadata=metadata)

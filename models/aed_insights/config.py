@@ -76,6 +76,10 @@ class ModellingConfig:
     val_size_within_temp: float = 0.50
     threshold_grid: Tuple[float, ...] = tuple(np.arange(0.05, 0.51, 0.05).round(2))
     f_beta: float = 2.0
+    show_learning_curves: bool = False
+    learning_curve_train_sizes: Tuple[float, ...] = tuple(np.linspace(0.1, 1.0, 10).round(2))
+    learning_curve_cv: int = 5
+    learning_curve_scoring: str = "balanced_accuracy"
     numeric_cols: Tuple[str, ...] = ("noofinvestigation", "noofpatients", "nooftreatment", "age")
     categorical_cols: Tuple[str, ...] = ("day", "dayofweek", "period", "hrg_group")
     main_numeric: Tuple[str, ...] = ("noofinvestigation",)
