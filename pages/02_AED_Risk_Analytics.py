@@ -108,6 +108,9 @@ def render_tree_plot(_analytics):
 
     feature_names = _analytics["feature_names"]
 
+    st.write(feature_names)
+    st.write(len(feature_names))
+    st.write(tree.n_features_in_)
     # ---- SAFETY: feature alignment ----
     assert len(feature_names) == tree.n_features_in_, (
         f"Feature mismatch: tree expects {tree.n_features_in_}, "
