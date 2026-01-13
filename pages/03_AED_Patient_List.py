@@ -204,7 +204,7 @@ def render_search(df, colmap):
         if hits.empty:
             st.info("No patients found.")
         else:
-            st.dataframe(hits, use_container_width=True, hide_index=True)
+            st.dataframe(hits, width='stretch', hide_index=True)
 
 
 def render_download(df, label, key):
@@ -215,7 +215,7 @@ def render_download(df, label, key):
         data=buf.getvalue(),
         file_name=f"{key}.csv",
         mime="text/csv",
-        use_container_width=True,
+        width='stretch',
     )
 
 
@@ -366,7 +366,7 @@ def show_aed_analytics_popup():
 def render_analytics_helper_button():
     cols = st.columns([1, 1])
     with cols[0]:
-        if st.button("🔍 View AED Risk Insights", use_container_width=True):
+        if st.button("🔍 View AED Risk Insights", width='stretch'):
             show_aed_analytics_popup()
 
 
@@ -387,7 +387,7 @@ def main():
     filtered = apply_filters(df, colmap, filters)
 
     st.markdown("#### Filtered Patients")
-    st.dataframe(filtered, use_container_width=True, hide_index=True)
+    st.dataframe(filtered, width='stretch', hide_index=True)
     render_download(filtered, "Download filtered CSV", "filtered-patients")
 
     render_summary(filtered, colmap)
@@ -398,7 +398,7 @@ def main():
 
     st.markdown("---")
     st.markdown("#### Full Patients List")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width='stretch', hide_index=True)
     render_download(df, "Download full CSV", "full-patients")
 
 

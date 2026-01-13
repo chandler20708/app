@@ -64,6 +64,39 @@ class AllPairsAvailabilityFairness(FairnessStrategy):
             diff_vars.append(d_var)
 
         return gp.quicksum(diff_vars)
+    
+class RangeMinimisationFairness(FairnessStrategy):
+    """
+    Pure min–max (range) fairness.
+
+    Minimises the difference between the maximum and minimum
+    weekly assigned hours across all students:
+        min (H_max - H_min)
+    """
+
+    def apply(self, model: gp.Model, H: gp.tupledict, problem: SchedulingProblem):
+
+        students = problem.students
+        days = problem.days
+
+        # Weekly hours per student
+        weekly = {
+            o: gp.quicksum(H[d, o] for d in days)
+            for o in students
+        }
+
+        # Range variables
+        h_max = model.addVar(lb=0, name="h_max")
+        h_min = model.addVar(lb=0, name="h_min")
+
+        # Range constraints
+        for o in students:
+            model.addConstr(weekly[o] <= h_max, name=f"Range_Max[{o}]")
+            model.addConstr(h_min <= weekly[o], name=f"Range_Min[{o}]")
+
+        # Objective expression
+        return h_max - h_min
+
 
 class LexicographicFairness(FairnessStrategy):
     """
@@ -130,7 +163,7 @@ class LexicographicAvailabilityFairness(FairnessStrategy):
         }
 
         # Mean utilisation
-        mean_util = model.addVar(lb=0, name="mean_utilisation")
+        mean_util = model.addVar(lb=0, ub=1, name="mean_utilisation")
         model.addConstr(
             mean_util * len(students) == gp.quicksum(util.values()),
             name="Mean_Utilisation_Def"

@@ -50,7 +50,7 @@ def render_download(df: pd.DataFrame):
         data=csv_bytes,
         file_name="change_log_export.csv",
         mime="text/csv",
-        use_container_width=True,
+        width='stretch',
     )
 
 
@@ -69,7 +69,7 @@ def main():
     render_download(filtered)
     st.dataframe(
         filtered,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             "timestamp": st.column_config.Column(width="small"),

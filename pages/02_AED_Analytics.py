@@ -37,6 +37,12 @@ def prepare_aed_analytics():
 
     X = df.drop('Breach_flag', axis=1)
 
+    # ---- HARD SAFETY: class sanity ----
+    assert hasattr(tree_model, "classes_"), "Tree model has no classes_ attribute"
+    assert set(tree_model.classes_) == {0, 1}, (
+        f"Unexpected class labels in tree: {tree_model.classes_}"
+    )
+
     rules = extract_rules(
         tree_model,
         feature_names=X.columns,
@@ -77,14 +83,36 @@ def proportion_bar(breach_pct, width=90):
     </TABLE>
     """
 
+def export_tree_png(graph, filename: str = "aed_breach_decision_tree.png"):
+    png_bytes = graph.pipe(format="png")
+
+    st.download_button(
+        label="Download tree as PNG",
+        data=png_bytes,
+        file_name=filename,
+        mime="image/png",
+    )
+
+
 @st.cache_resource
 def render_tree_plot(_analytics):
     tree = _analytics["tree_model"]
     tree_ = tree.tree_
     values = tree_.value[:, 0]          # shape: (n_nodes, n_classes)
+
+    # ---- HARD CLASS ALIGNMENT ----
+    classes = list(tree.classes_)
+    assert set(classes) == {0, 1}, f"Unexpected classes: {classes}"
+
     breach_idx = list(tree.classes_).index(1)  # adjust if needed
 
     feature_names = _analytics["feature_names"]
+
+    # ---- SAFETY: feature alignment ----
+    assert len(feature_names) == tree.n_features_in_, (
+        f"Feature mismatch: tree expects {tree.n_features_in_}, "
+        f"but got {len(feature_names)}"
+    )
 
     breach_prob = values[:, breach_idx] / values.sum(axis=1)
 
@@ -101,7 +129,12 @@ def render_tree_plot(_analytics):
         pred_class = tree.classes_[pred_idx]
         pred_class_name = "Breach" if pred_class == 1 else "Non-breach"
 
-        breach_pct = breach_prob[i] * 100
+        breach_p = breach_prob[i]
+        breach_pct = breach_p * 100
+
+        # ---- CLASS DETERMINED BY PROBABILITY (NOT ARGMAX) ----
+        node_color = COLOR_BREACH if breach_p >= 0.5 else COLOR_NON_BREACH
+        
         bar = proportion_bar(breach_pct)
 
         if tree_.children_left[i] == -1:
@@ -111,7 +144,7 @@ def render_tree_plot(_analytics):
             threshold = tree_.threshold[i]
             title = f"{feature} ≤ {threshold:.2f}"
 
-        label = label = f"""
+        label = f"""
 <
 <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="2">
   <TR>
@@ -133,9 +166,8 @@ def render_tree_plot(_analytics):
 >
 """
 
-
         node_labels[i] = label
-        node_styles[i] = COLOR_BREACH if pred_class == 1 else COLOR_NON_BREACH
+        node_styles[i] = node_color
 
 
     # fig = plt.figure(figsize=(60, 26), dpi=250)
@@ -180,6 +212,7 @@ def render_tree_plot(_analytics):
     plt.title("Decision Logic Used to Identify High Breach Risk")
     graph = graphviz.Source(dot_fixed)
     st.graphviz_chart(graph, height=650, width='content')
+    return graph
 
     # st.pyplot(fig, width="content")
 
@@ -187,7 +220,8 @@ def render_tree_section(container, analytics):
     with container:
         st.subheader("Representative Decision Tree")
 
-        render_tree_plot(analytics)
+        graph = render_tree_plot(analytics)
+        export_tree_png(graph)
 
 def render_rule_section(container, analytics):
     with container:
