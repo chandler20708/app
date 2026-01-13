@@ -259,12 +259,12 @@ def main():
     render_rule_section(rule_section, analytics)
 
     with footer_section:
-        st.caption("AED analytics module — interpretability-focused view.")
+        st.caption("AED risk analytics module — interpretability-focused view.")
 
 
 if __name__ == "__main__":
     st.set_page_config(
-        page_title="AED Analytics",
+        page_title="AED Breach Risk Analytics",
         layout="wide",
     )
     main()

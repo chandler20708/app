@@ -137,7 +137,6 @@ def build_descriptive_tables(
             df, schema.investigation_cluster_col
         )
     tables["categorical_breachornot"] = categorical_proportions(df, schema.breach_col)
-    tables["overall_breach_share"] = breach_share(df, schema)
     breach_day = breach_rate_by(df, schema, schema.dayofweek_col)
     if day_order:
         breach_day["_order"] = pd.Categorical(
@@ -231,6 +230,22 @@ def age_by_investigations(df: pd.DataFrame, schema: Schema, config: AEDConfig) -
     ax.set_title("Age Distribution by Number of Investigations")
     ax.set_xlabel("Number of Investigations (Discrete)")
     ax.set_ylabel("Patient Age (Continuous)")
+    return fig
+
+
+def los_by_investigations(df: pd.DataFrame, schema: Schema, config: AEDConfig) -> Figure:
+    fig = _base_figure(config, width=10.0, height=6.0)
+    ax = fig.add_subplot(1, 1, 1)
+    sns.boxplot(
+        data=df,
+        x=schema.noofinvestigation_col,
+        y=schema.los_col,
+        showfliers=False,
+        ax=ax,
+    )
+    ax.set_xlabel("Number of Investigations")
+    ax.set_ylabel("Length of Stay (LoS)")
+    ax.set_title("Distribution of Length of Stay by Number of Investigations")
     return fig
 
 
@@ -369,6 +384,7 @@ def build_descriptive_figures(
         figures[f"count_{col}"] = categorical_countplot(df, schema, config, col)
 
     figures["age_vs_los"] = age_vs_los(df, schema, config)
+    figures["los_by_investigations"] = los_by_investigations(df, schema, config)
     figures["age_by_investigations"] = age_by_investigations(df, schema, config)
     figures["age_by_treatments"] = age_by_treatments(df, schema, config)
     figures["age_by_breach"] = age_by_breach(df, schema, config)

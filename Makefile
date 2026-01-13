@@ -1,4 +1,4 @@
-.PHONY: help venv install run clean
+.PHONY: help venv install shell setup run clean
 
 VENV_DIR := .venv
 PYTHON := $(VENV_DIR)/bin/python
@@ -8,6 +8,8 @@ help:
 	@echo "Targets:"
 	@echo "  make venv    - Create virtual environment"
 	@echo "  make install - Install dependencies (and Graphviz)"
+	@echo "  make shell   - Open a shell with the venv activated"
+	@echo "  make setup   - Install everything and open the venv shell"
 	@echo "  make run     - Run Streamlit app"
 	@echo "  make clean   - Remove virtual environment"
 
@@ -59,6 +61,11 @@ install: venv
 
 run: install
 	$(PYTHON) -m streamlit run Overview.py
+
+shell: venv
+	@. $(VENV_DIR)/bin/activate && exec $$SHELL
+
+setup: install shell
 
 clean:
 	rm -rf $(VENV_DIR)

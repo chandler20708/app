@@ -330,14 +330,14 @@ def render_edit_delete(df, colmap) -> pd.DataFrame:
 import streamlit as st
 
 
-@st.dialog("AED Analytics — High-Risk Breach Patterns", width="large")
+@st.dialog("AED Risk Analytics — High-Risk Breach Patterns", width="large")
 def show_aed_analytics_popup():
     rules = st.session_state.get("aed_rules")
 
     if not rules:
         st.info(
             "No AED analytics insights available.\n\n"
-            "Please visit the AED Analytics page first."
+            "Please visit the AED Risk Analytics page first."
         )
         return
 

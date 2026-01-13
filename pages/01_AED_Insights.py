@@ -68,6 +68,10 @@ def _render_figures_expanders(
 def main() -> None:
     st.set_page_config(page_title="AED Insights", layout="wide")
     st.title("AED Insights")
+    st.markdown(
+        "Descriptive and inferential analyses are based on a reproducible random sample of 400 patients. "
+        "Predictive modelling is conducted using the full AED dataset to maximise statistical power and stability."
+    )
 
     artifacts = _load_artifacts()
 
@@ -83,11 +87,10 @@ def main() -> None:
         tables = dict(descriptive.tables)
         categorical_hrg = tables.pop("categorical_hrg", None)
         breachornot = tables.pop("categorical_breachornot", None)
-        breach_share = tables.pop("overall_breach_share", None)
         breach_day = tables.pop("breach_rate_by_dayofweek", None)
         breach_period = tables.pop("breach_rate_by_period", None)
         _render_tables_compact(tables, "Descriptive Tables")
-        if categorical_hrg is not None or breachornot is not None or breach_share is not None:
+        if categorical_hrg is not None or breachornot is not None:
             left, right = st.columns([2, 1])
             with left:
                 if categorical_hrg is not None:
@@ -95,8 +98,6 @@ def main() -> None:
             with right:
                 if breachornot is not None:
                     _render_table_item("categorical_breachornot", breachornot)
-                if breach_share is not None:
-                    _render_table_item("overall_breach_share", breach_share)
         if breach_day is not None or breach_period is not None:
             left, right = st.columns([2, 1])
             with left:
