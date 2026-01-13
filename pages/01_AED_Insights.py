@@ -86,18 +86,21 @@ def main() -> None:
     with descriptive_tab:
         tables = dict(descriptive.tables)
         categorical_hrg = tables.pop("categorical_hrg", None)
+        categorical_investigation = tables.pop("categorical_investigation_cnt_cluster", None)
         breachornot = tables.pop("categorical_breachornot", None)
         breach_day = tables.pop("breach_rate_by_dayofweek", None)
         breach_period = tables.pop("breach_rate_by_period", None)
         _render_tables_compact(tables, "Descriptive Tables")
-        if categorical_hrg is not None or breachornot is not None:
+        if categorical_investigation is not None or categorical_hrg is not None:
             left, right = st.columns([2, 1])
             with left:
+                if categorical_investigation is not None:
+                    _render_table_item("categorical_investigation_cnt_cluster", categorical_investigation)
+            with right:
                 if categorical_hrg is not None:
                     _render_table_item("categorical_hrg", categorical_hrg)
-            with right:
-                if breachornot is not None:
-                    _render_table_item("categorical_breachornot", breachornot)
+        if breachornot is not None:
+            _render_table_item("categorical_breachornot", breachornot)
         if breach_day is not None or breach_period is not None:
             left, right = st.columns([2, 1])
             with left:
