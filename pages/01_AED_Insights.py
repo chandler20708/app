@@ -169,6 +169,6 @@ if __name__ == "__main__":
         """,
         unsafe_allow_html=True
     )
-    with open("./international_coal/app/plerdy.html") as f:
+    with open("./plerdy.html") as f:
       html_string = f.read()
       html(html_string)
