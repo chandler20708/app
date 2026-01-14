@@ -303,8 +303,8 @@ if __name__ == "__main__":
             <a href='https://www.linkedin.com/in/%E8%96%87%E5%AE%89-%E9%99%B3-72531b29a/' target='_blank'>Wei-An Chen</a>
             <a href='https://www.linkedin.com/in/akash-somasundaran0713/' target='_blank'>Akash Somasundaran</a>
             <a href='https://www.linkedin.com/in/qutaybah-alowaifeer-88953a150/' target='_blank'>Qutaybah Alowaifeer</a>
+            <a href='https://www.linkedin.com/in/laura-yi-rou-lu-7432b9158/' target='_blank'>Yi-Rou Lu</a>
             <a href='https://www.linkedin.com/in/raahimsohail/' target='_blank'>Muhammad Raahim Sohail</a>
-            <a>Yi-Rou Lu</a>
         </div>
         """,
         unsafe_allow_html=True
