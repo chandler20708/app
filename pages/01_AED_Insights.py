@@ -157,7 +157,7 @@ if __name__ == "__main__":
     st.markdown(
         """
         <div style='text-align: center; font-size: 0.9em; color: gray;'>
-            © 2025 <b>Chia-Te Liu</b>. All rights reserved.  
+            © 2026 <b>Chia-Te Liu</b>. All rights reserved.  
             Made with ❤️ using Streamlit. Backend built by:  
             <a href='https://www.linkedin.com/in/chia-te-liu/' target='_blank'>Chia-Te Liu</a>
             <a href='https://www.linkedin.com/in/ashmi-fathima/' target='_blank'>Ashmi Fathima</a>
