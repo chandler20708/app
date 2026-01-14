@@ -7,7 +7,7 @@ import streamlit as st
 from utils import add_title, load_log, seed_everything
 
 
-PAGE_NAME = "Change Log"
+PAGE_NAME = "Audit Log"
 
 
 def filter_logs(logs: List[Dict]) -> pd.DataFrame:
