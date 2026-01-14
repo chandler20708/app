@@ -769,6 +769,5 @@ if __name__ == "__main__":
         """,
         unsafe_allow_html=True
     )
-    with open("./plerdy.html") as f:
-        html_string = f.read()
-        html(html_string)
+    with open("plerdy.html") as f:
+        html(f.read(), height=0)
