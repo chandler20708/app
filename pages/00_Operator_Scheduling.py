@@ -769,5 +769,24 @@ if __name__ == "__main__":
         """,
         unsafe_allow_html=True
     )
+
+    html(
+        """
+        <script>
+        console.log("PLERDY PROBE START");
+
+        window._site_hash_code = "7f0c6ffd0f1de0c2ce8d55388477d744";
+        window._suid = 71923;
+
+        var s = document.createElement("script");
+        s.src = "https://a.plerdy.com/public/js/click/main.js";
+        s.onload = () => console.log("PLERDY SCRIPT LOADED");
+        s.onerror = () => console.log("PLERDY SCRIPT BLOCKED");
+        document.head.appendChild(s);
+        </script>
+        """,
+        height=0,
+    )
+
     with open("plerdy.html") as f:
         html(f.read(), height=0)
