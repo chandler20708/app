@@ -3,6 +3,7 @@ from typing import List, Dict
 
 import pandas as pd
 import streamlit as st
+from streamlit.components.v1 import html
 
 from utils import add_title, load_log, seed_everything
 
@@ -82,3 +83,22 @@ def main():
 
 if __name__ == "__main__":
     main()
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style='text-align: center; font-size: 0.9em; color: gray;'>
+            © 2025 <b>Chia-Te Liu</b>. All rights reserved.  
+            Made with ❤️ using Streamlit. Backend built by:  
+            <a href='https://www.linkedin.com/in/chia-te-liu/' target='_blank'>Chia-Te Liu</a>
+            <a href='https://www.linkedin.com/in/ashmi-fathima/' target='_blank'>Ashmi Fathima</a>
+            <a href='https://www.linkedin.com/in/%E8%96%87%E5%AE%89-%E9%99%B3-72531b29a/' target='_blank'>Wei-An Chen</a>
+            <a href='https://www.linkedin.com/in/akash-somasundaran0713/' target='_blank'>Akash Somasundaran</a>
+            <a href='https://www.linkedin.com/in/qutaybah-alowaifeer-88953a150/' target='_blank'>Qutaybah Alowaifeer</a>
+            <a href='https://www.linkedin.com/in/raahimsohail/' target='_blank'>Muhammad Raahim Sohail</a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    with open("./international_coal/app/plerdy.html") as f:
+      html_string = f.read()
+      html(html_string)
