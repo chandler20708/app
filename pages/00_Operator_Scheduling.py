@@ -9,21 +9,21 @@ import streamlit as st
 from streamlit.components.v1 import html
 
 from models import (
-    AllPairsFairness,
     AllPairsAvailabilityFairness,
+    AllPairsFairness,
     MinimizeCostPolicy,
-    NoFairness,
     MinimizeUnfairnessPolicy,
+    NoFairness,
     SchedulerService,
     SchedulingProblem,
 )
 from utils import (
     add_title,
-    validate_csv_file,
-    log_action,
-    seed_everything,
     build_workload_chart,
+    log_action,
     order_days,
+    seed_everything,
+    validate_csv_file,
 )
 
 # --- Constants ---
@@ -192,7 +192,9 @@ def _last_solution_status() -> Optional[str]:
     return None
 
 
-def render_sidebar_and_problem() -> tuple[ProblemContext, Dict[str, object], Optional[float]]:
+def render_sidebar_and_problem() -> tuple[
+    ProblemContext, Dict[str, object], Optional[float]
+]:
     with st.sidebar:
         st.markdown("### Operator Scheduling ⚙️")
         uploaded_file = st.file_uploader(
@@ -212,7 +214,7 @@ def render_sidebar_and_problem() -> tuple[ProblemContext, Dict[str, object], Opt
                 data=template_bytes,
                 file_name="students_schedule_template.csv",
                 mime="text/csv",
-                width='stretch',
+                width="stretch",
             )
 
     if uploaded_file is not None:
@@ -271,7 +273,9 @@ def render_sidebar_and_problem() -> tuple[ProblemContext, Dict[str, object], Opt
 # --- Solver Utilities ---
 
 
-def _apply_skill_preferences(problem: SchedulingProblem, consider_skills: bool) -> SchedulingProblem:
+def _apply_skill_preferences(
+    problem: SchedulingProblem, consider_skills: bool
+) -> SchedulingProblem:
     if not consider_skills:
         return SchedulingProblem(
             students=problem.students,
@@ -356,7 +360,9 @@ def build_solution_view(
     cost_rows = []
     schedule_rows = []
     coverage_by_day: Dict[str, float] = {d: 0.0 for d in sol.problem.days}
-    skill_users = set(sol.problem.programming_ops) | set(sol.problem.troubleshooting_ops)
+    skill_users = set(sol.problem.programming_ops) | set(
+        sol.problem.troubleshooting_ops
+    )
 
     for student in sol.problem.students:
         hours = float(sol.weekly_hours.get(student, 0.0))
@@ -545,6 +551,7 @@ def render_header():
         unsafe_allow_html=True,
     )
 
+
 def _render_cost_summary(solution_view: SolutionView) -> None:
     total = solution_view.total_cost
     baseline = solution_view.baseline_cost
@@ -572,9 +579,11 @@ def _render_cost_summary(solution_view: SolutionView) -> None:
     if limit is not None:
         st.caption(f"Cost limit: £{limit:,.2f}")
 
+
 def check_df(df: pd.DataFrame):
     st.write(df)
     return df
+
 
 def _build_schedule_table(solution_view: SolutionView) -> pd.DataFrame | None:
     df = solution_view.schedule
@@ -601,34 +610,26 @@ def _build_schedule_table(solution_view: SolutionView) -> pd.DataFrame | None:
         # .pipe(check_df)
         .reindex(columns=days, fill_value=0)
         .join(pd.Series(solution_view.weekly_hours, name="Total"))
-        .join(
-            pd.Series(solution_view.problem.wage_rates)
-            .rename("Wage Rate")
-        )
-        .assign(
-            **{
-                "Weekly Cost": lambda t: t["Total"] * t["Wage Rate"]
-            }
-        )
+        .join(pd.Series(solution_view.problem.wage_rates).rename("Wage Rate"))
+        .assign(**{"Weekly Cost": lambda t: t["Total"] * t["Wage Rate"]})
     )
 
+
 def _append_total_row(table: pd.DataFrame) -> pd.DataFrame:
-    total_row = (
-        table.sum(numeric_only=True)
-        .to_frame()
-        .T
-        .assign(**{"Wage Rate": ""})
-    )
+    total_row = table.sum(numeric_only=True).to_frame().T.assign(**{"Wage Rate": ""})
     total_row.index = ["TOTAL"]
 
     return pd.concat([table, total_row])
+
 
 def _format_currency(
     table: pd.DataFrame, *, cols: list[str], is_rate: bool
 ) -> pd.DataFrame:
     def fmt(v):
-        if is_rate: hour_msg = "/hour"
-        else: hour_msg = ""
+        if is_rate:
+            hour_msg = "/hour"
+        else:
+            hour_msg = ""
         return f"£{v:,.0f}{hour_msg}" if pd.notna(v) and v != "" else v
 
     return table.assign(**{c: table[c].map(fmt) for c in cols})
@@ -653,7 +654,6 @@ def render_cost_and_table(solution_view: SolutionView) -> None:
         table.reset_index().rename(columns={"index": "Student"}),
         width="stretch",
     )
-
 
 
 def render_schedule(view: SolutionView, view_label: str):
@@ -767,7 +767,7 @@ if __name__ == "__main__":
             <a href='https://www.linkedin.com/in/raahimsohail/' target='_blank'>Muhammad Raahim Sohail</a>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
 html(
@@ -786,7 +786,7 @@ html(
     </script>
     """,
     height=0,
-    )
+)
 
 with open("plerdy.html") as f:
     html(f.read(), height=0)
